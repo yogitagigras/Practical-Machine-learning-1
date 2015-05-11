@@ -1,0 +1,115 @@
++---
++output: html_document
++---
++
++# Practical Machine Learning 
++Author: yogita gigras
++Date: 5/11/2015
++
++Background
++
++Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
++
++Data 
++
++The training data for this project are available here: 
++
++https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
++
++The test data are available here: 
++
++https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
++
++The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har. If you use the document you create for this class for any purpose please cite them as they have been very generous in allowing their data to be used for this kind of assignment. 
++
++The goal of this project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases. 
++
++## Data Cleaning/preprocessing - creation of validation set
++
++```{r data cleaning}
++# Load data sets
++origtrain <- read.csv("pml-training.csv");
++origtest <-  read.csv("pml-testing.csv");
++str(origtrain)
++```
++This set consists of  observations observations of  variables.
++There are missing values, near zero variance features, etc. and columns like X.
++A little bit of cleaning is necessary to handle this situation.
++
++```{r tidy up}
++library(caret)
++# remove irrelevant variables from both data sets
++irInd <- grep("X|timestamp|user_name|new_window", names(origtrain));
++origtrain <- origtrain[,-irInd];
++origtest <- origtest[,-irInd];
++# Treat missing values by replacing missing values with 0
++origtrain[is.na(origtrain)] <- 0
++origtest[is.na(origtest)] <- 0
++# remove near zero variance features from both data sets
++nrInd <- nearZeroVar(origtrain);
++origtrain <- origtrain[,-nrInd];
++origtest <- origtest[,-nrInd];
++# Load caret library and do partitioning  
++set.seed(222);
++cdptrain <- createDataPartition(origtrain$classe, p=0.7, list = FALSE);
++newtrain <- origtrain[cdptrain,];
++newvalid <- origtrain[-cdptrain,]
++```
++
++## Fitting the Model
++
++We select a Random Forest model to predict the manner in which exercises were performed by people. This model is known to have a number of interesting characteristics.
++
++```{r model fitting}
++library(randomForest)
++modFit = randomForest(classe ~.,data=newtrain,mtry=30, ntree=100,keep.forest=TRUE,importance=TRUE,proximity=TRUE)
++# modFit = randomForest(classe ~.,data=newtrain,mtry=15,ntree=40,keep.forest=TRUE,importance=TRUE,proximity=TRUE)
++modFit
++```
++
++We then apply the model to the validation dataset to compute an estimate of its accuracy.
++Given that we tried other models by changing mtry and ntree, we will expect out-of-sample error less than 0.5%.
++
++
++```{r predict1}
++modPred <- predict(modFit,newvalid);
++confusionMatrix(modPred, newvalid$classe)
++```
++
++We can see from the results, that the model's accuracy, on the validation set. The OOB was 0.2 %.The out-of-sample error has been estimated at 0.3%, which is quite a good performance.
++
++
++## Results
++
++We then proceed to run the model on the final testing set (20 test cases) to ensure it predicts the way people performed the exercises.
++
++```{r pred final}
++predFinal <- predict(modFit, origtest);
++predFinal
++```
++
++The algorithm then correctly predicts the way in which the exercises were carried out.
++
++These outputs have to be saved to file...
++```{r file save}
++results <- as.vector(predFinal)
++
++pml_write_files = function(x) {
++  n = length(x)
++  for (i in 1:n) {
++    filename = paste0("problem_id_", i, ".txt")
++    write.table(x[i], file = filename, quote=FALSE, row.names = FALSE, col.names = FALSE)
++  }
++}
++pml_write_files(results)
++```
++
++
++ 
++
++
++
++
++
++
++
